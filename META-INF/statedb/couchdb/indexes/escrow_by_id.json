@@ -1,0 +1,6 @@
+{
+  "index": { "fields": ["Type", "EscrowID"] },
+  "ddoc": "idx-escrow-by-id",
+  "name": "idx-escrow-by-id",
+  "type": "json"
+}

@@ -1,0 +1,6 @@
+{
+  "index": { "fields": ["Type", "ref", "ts"] },
+  "ddoc": "idx-audit-by-ref",
+  "name": "idx-audit-by-ref",
+  "type": "json"
+}

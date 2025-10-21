@@ -1,19 +1,35 @@
 # pay-escrow • Fabric MVP
 
-## Быстрый старт (WSL2)
+## Быстрый старт
 ```bash
 cp env.example .env && source .env
+./scripts/sync-cc.sh chaincode     # если CC_PATH пакуется внутри peer
 ./scripts/deploy.sh
 ./scripts/smoke.sh
 
-Как вызывать API (через CLI-обёртку)
+Prereq
 
-Все методы вызываются как:
+Docker и docker-compose
 
-./scripts/client-cli.sh <invoke|query> <fn> '<JSON-args>'
+Fabric binaries в PATH (peer version)
+
+Test-network:
+
+cd ~/fabric-samples/test-network
+./network.sh up createChannel -c mychannel -ca -s couchdb
+
+.env ключи
+
+CHANNEL | CCNAME | ORDERER | ORG1_PEER | ORG2_PEER | TLS_CA | CC_PATH | ADMIN_MSP
+
+Как вызывать API через CLI
+
+Сигнатура:
+
+./scripts/client-cli.sh <invoke|query> <namespace> <function> '<JSON-args>'
 
 
-Где <fn> — имя функции чейнкода (неймспейс в первом аргументе), <JSON-args> — массив строк.
+Все аргументы — строки.
 
 Неймспейсы и функции
 
@@ -29,7 +45,7 @@ pay-escrow
 
 CreateEscrow(id,buyer,seller,symbol,amount,deadline,ref) → {"id","status":"LOCKED",...}
 
-ReadEscrow(id) → объект эскроу
+ReadEscrow(id) → Escrow JSON
 
 ListEscrows(partialKey) → {results:[...], bookmark}
 
@@ -43,7 +59,7 @@ AppendLog(txType, ref, payloadJSON) → txid
 
 ListLogs(ref, bookmark) → {results:[{ts,txType,ref,payload}], bookmark}
 
-Примеры вызовов
+Примеры
 # Токен
 ./scripts/client-cli.sh invoke cfa-token Issue '["RUB","1000","admin"]'
 ./scripts/client-cli.sh query  cfa-token BalanceOf '["buyerA","RUB"]'
@@ -57,24 +73,18 @@ ListLogs(ref, bookmark) → {results:[{ts,txType,ref,payload}], bookmark}
 ./scripts/client-cli.sh invoke audit-log AppendLog '["Release","e#1","{\"by\":\"oracle\"}"]'
 ./scripts/client-cli.sh query  audit-log ListLogs '["e#1",""]'
 
-Аргументы и ошибки
+Коды ошибок
 
-Все аргументы — строки.
+ERR_BAD_ARGS, ERR_NOT_FOUND, ERR_FORBIDDEN, ERR_STATE_CONFLICT.
 
-Коды ошибок: ERR_BAD_ARGS, ERR_NOT_FOUND, ERR_FORBIDDEN, ERR_STATE_CONFLICT.
+Troubleshooting
 
-Интеграция с бэком
+no source files in CC_PATH → проверь CC_PATH и наличие package.json в контейнере.
 
-Вызывайте функции через REST-шлюз или напрямую через peer CLI аналогично примерам.
+orderer … deadline exceeded → подними test-network и проверь порт 7050.
 
-Сохраняйте txid и payload ответов, валидируйте статусы LOCKED/RELEASED/CANCELED.
+Версии
 
-Для листингов используйте ListEscrows и пагинацию по bookmark.
+v3.14 — код и индексы.
 
-Сервисные скрипты
-
-scripts/deploy.sh — package/install/approve/commit.
-
-scripts/client-cli.sh — invoke/query.
-
-scripts/smoke.sh — e2e сценарий Issue→Create→Read→Release→Balances→Audit.
+v3.15 — MVP pack: scripts/, env.example, этот README, docs/.

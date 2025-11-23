@@ -10,6 +10,7 @@
 
 ## Требования
 - Docker и Docker Compose.
+- Node.js 16 (соответствует runtime `fabric-chaincode-node` 2.5.x) — нужен при упаковке chaincode.
 - Fabric peer CLI в `PATH` (совместимые с Fabric 2.5.x).
 - Развёрнутый `fabric-samples/test-network` (CouchDB, два орга). Пример запуска:
   ```bash
@@ -62,31 +63,54 @@ cp env.example .env && source .env
 ## Вызовы через CLI
 Универсальный клиент: `./scripts/client-cli.sh <invoke|query> <namespace> <function> '<JSON-args>'`
 
-### Неймспейсы и методы
-- **cfa-token**: `Issue(symbol, amount, to)`, `Redeem(symbol, amount, from)`, `BalanceOf(account, symbol)`
-- **pay-escrow**: `CreateEscrow(id,buyer,seller,symbol,amount,deadline,ref)`, `ReadEscrow(id)`, `ListEscrows(partialKey)`, `ReleaseEscrow(id,proof)`, `CancelEscrow(id,reason)`
-- **audit-log**: `AppendLog(txType, ref, payloadJSON)`, `ListLogs(ref, bookmark)`
+### Неймспейсы и методы (фактические сигнатуры)
+- **cfa-token**:
+  - `Issue(amount, account)` — пополнение счёта (только админ Org1).
+  - `Redeem(amount, account)` — списание со счёта (только админ Org1).
+  - `BalanceOf(account)` — баланс счёта.
+- **pay-escrow**:
+  - `CreateEscrow(id, buyer, seller, amount, currency)`
+  - `ReadEscrow(id)`
+  - `ListEscrows()` — полный список эскроу-договоров.
+  - `ReleaseEscrow(id)`
+  - `CancelEscrow(id)`
+- **audit-log**:
+  - `AppendLog(txType, ref, payloadJSON)`
+  - `ListLogsByRef(ref)`
 
 ### Примеры
 ```bash
-# Токен
-./scripts/client-cli.sh invoke cfa-token Issue '["RUB","1000","admin"]'
-./scripts/client-cli.sh query  cfa-token BalanceOf '["buyerA","RUB"]'
+# Токен (работает только под Org1 admin MSP)
+./scripts/client-cli.sh invoke cfa-token Issue '["1000","admin"]'
+./scripts/client-cli.sh query  cfa-token BalanceOf '["buyerA"]'
 
 # Эскроу
-./scripts/client-cli.sh invoke pay-escrow CreateEscrow '["e#1","buyerA","sellerB","RUB","5000","2025-12-31","inv#42"]'
+./scripts/client-cli.sh invoke pay-escrow CreateEscrow '["e#1","buyerA","sellerB","5000","RUB"]'
 ./scripts/client-cli.sh query  pay-escrow ReadEscrow '["e#1"]'
-./scripts/client-cli.sh invoke pay-escrow ReleaseEscrow '["e#1","ok_by_oracle"]'
+./scripts/client-cli.sh invoke pay-escrow ReleaseEscrow '["e#1"]'
 
 # Аудит
 ./scripts/client-cli.sh invoke audit-log AppendLog '["Release","e#1","{\"by\":\"oracle\"}"]'
-./scripts/client-cli.sh query  audit-log ListLogs '["e#1",""]'
+./scripts/client-cli.sh query  audit-log ListLogsByRef '["e#1"]'
 ```
 
 ## Ошибки и диагностика
 - Частые коды ошибок chaincode: `ERR_BAD_ARGS`, `ERR_NOT_FOUND`, `ERR_FORBIDDEN`, `ERR_STATE_CONFLICT` (описаны в `docs/API.md`).
 - `no source files in CC_PATH` — проверьте `CC_PATH` и наличие `package.json` внутри контейнера peer.
 - `orderer … deadline exceeded` — убедитесь, что `test-network` запущен и порт `7050` доступен.
+
+## Как обновить ветку, если README конфликтует
+Самая частая точка расхождения с основной веткой — этот README. Если git ругается на конфликты при создании PR:
+
+1. Подтяните свежий `main` и перебазируйте свою ветку:
+   ```bash
+   git fetch origin
+   git checkout work
+   git rebase origin/main
+   ```
+2. Разрешая конфликт в `README.md`, сохраняйте текущие таблицы CLI-сигнатур и раздел «Быстрый старт». Новые правки из `main` можно аккуратно влить сверху, но не удаляйте примеры вызовов.
+3. После фиксации ребейза запустите проверочный скрипт: `./scripts/smoke.sh` — он подтвердит, что документация и интерфейсы CLI соответствуют коду.
+4. Запушьте обновлённую ветку: `git push --force-with-lease`.
 
 ## Дополнительные материалы
 - Подробности API и индексов: `docs/API.md`, `docs/COUCHDB_INDEXES.md`.
